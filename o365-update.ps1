@@ -22,7 +22,13 @@ $errormessagecolor = "red"
 $warningmessagecolor = "yellow"
 
 Function test-install($modulename) {
-    if (Get-InstalledModule -Name $modulename) {          ## If module exists then update
+    try {
+        $found = Get-InstalledModule -Name $modulename -erroraction Stop    
+    }
+    catch {
+        $found = $false
+    }
+    if ($found) {          ## If module exists then update
         #get version of the module (selects the first if there are more versions installed)
         $version = (Get-InstalledModule -name $modulename) | Sort-Object Version -Descending  | Select-Object Version -First 1
         #get version of the module in psgallery
@@ -95,6 +101,8 @@ If ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administ
     write-host -foregroundcolor $processmessagecolor "Update Windows Autopilot Module"
     ## will also update dependent AzureAD and Microsoft.Graph.Intune modules
     test-install -modulename WindowsAutoPilotIntune
+    write-host -foregroundcolor $processmessagecolor "Centralised Add-in Deployment"
+    test-install -modulename O365CentralizedAddInDeployment
 }
 Else {
     write-host -foregroundcolor $errormessagecolor "*** ERROR *** - Please re-run PowerShell environment as Administrator`n"
